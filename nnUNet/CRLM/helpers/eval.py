@@ -187,8 +187,7 @@ def extract_volume(scan_folder, segmentation_folder):
     #create dictonary of counts of voxels per label
     segmentation_dict = {label_name: counts[labels_mapping[label_name]]
                          for label_name in labels_mapping}
-
-   data_dict_KR = {"Filename": scan,
+    data_dict_KR = {"Filename": scan,
                     "Label": "kidney_right",
                     "Label number": 7, 
                     "Volume (ml)": segmentation_dict['kidney_right'] * voxel_volume / 1000, 
