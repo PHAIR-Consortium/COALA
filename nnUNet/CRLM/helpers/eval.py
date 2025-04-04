@@ -188,15 +188,23 @@ def extract_volume(scan_folder, segmentation_folder):
     segmentation_dict = {label_name: counts[labels_mapping[label_name]]
                          for label_name in labels_mapping}
 
-    data_dict = {"Filename": scan,
-                    "Label": "metastases",
-                    "Label number": 13, 
-                    "Volume (ml)": segmentation_dict['metastases'] * voxel_volume / 1000, 
-                    "Model name": "COALA", 
-                    "Model version": "0.3.0"}
-    volumes_path = os.path.join(segmentation_folder, 'volumes.json')
-    with open(volumes_path, "w") as outfile:
-        json.dump(data_dict, outfile)
+   data_dict_KR = {"Filename": scan,
+                    "Label": "kidney_right",
+                    "Label number": 7, 
+                    "Volume (ml)": segmentation_dict['kidney_right'] * voxel_volume / 1000, 
+                    "Model name": "COALA"}
+    volumes_path_KR = os.path.join(segmentation_folder, 'kidney_right_volumes.json')
+    with open(volumes_path_KR, "w") as outfile:
+        json.dump(data_dict_KR, outfile)
+ 
+    data_dict_KL = {"Filename": scan,
+                    "Label": "kidney_left",
+                    "Label number": 8, 
+                    "Volume (ml)": segmentation_dict['kidney_left'] * voxel_volume / 1000, 
+                    "Model name": "COALA"}
+    volumes_path_KL = os.path.join(segmentation_folder, 'kidney_left_volumes.json')
+    with open(volumes_path_KL, "w") as outfile:
+        json.dump(data_dict_KL, outfile)
 
 
 if __name__ == '__main__':
