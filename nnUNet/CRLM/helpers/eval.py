@@ -192,7 +192,7 @@ def extract_volume(scan_folder, segmentation_folder):
                     "Label number": 7, 
                     "Volume (ml)": segmentation_dict['kidney_right'] * voxel_volume / 1000, 
                     "Model name": "COALA"}
-    volumes_path_KR = os.path.join(segmentation_folder, 'kidney_right_volumes.json')
+    volumes_path_KR = os.path.join(segmentation_folder, 'volumes.json')
     with open(volumes_path_KR, "w") as outfile:
         json.dump(data_dict_KR, outfile)
  
