@@ -20,7 +20,7 @@ Please also cite this paper if you are using COALA for your research!
 1. Install COALA:
 Please ensure that you have installed nnunetv2 according to their installation instructions (https://github.com/MIC-DKFZ/nnUNet/tree/master). Do not clone their repository. 
 ```
- git clone https://github.com/JackieBereska/COALA.git
+ git clone https://github.com/PHAIR-Consortium/COALA.git
  cd COALA
  pip install -e .
 ```
