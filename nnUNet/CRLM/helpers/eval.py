@@ -185,18 +185,20 @@ def extract_volume(scan_folder, segmentation_folder):
     counts[labels_present] = np.bincount(segmentation_data)[labels_present]
 
     #create dictonary of counts of voxels per label
-    segmentation_dict = {label_name: counts[labels_mapping[label_name]]
-                         for label_name in labels_mapping}
+    for label_name, label_number in labels_mapping.items():
+        voxel_count = counts[label_number] if label_number < len(counts) else 0
+        volume_ml = voxel_count * voxel_volume / 1000 
 
-    data_dict = {"Filename": scan,
-                    "Label": "metastases",
-                    "Label number": 13, 
-                    "Volume (ml)": segmentation_dict['metastases'] * voxel_volume / 1000, 
-                    "Model name": "COALA", 
-                    "Model version": "0.3.0"}
-    volumes_path = os.path.join(segmentation_folder, 'volumes.json')
-    with open(volumes_path, "w") as outfile:
-        json.dump(data_dict, outfile)
+        data_dict = {"Filename": scan,
+                        "Label": label_name,
+                        "Label number": label_number, 
+                        "Volume (ml)": volume_ml, 
+                        "Model name": "COALA" }
+        output_filename = f"volumes_{label_name}.json"
+
+        volumes_path = os.path.join(segmentation_folder, output_filename)
+        with open(volumes_path, "w") as outfile:
+            json.dump(data_dict, outfile)
 
 
 if __name__ == '__main__':
