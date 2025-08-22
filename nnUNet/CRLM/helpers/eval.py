@@ -7,7 +7,15 @@ import numpy as np
 import nibabel as nib
 from scipy import stats
 import json
+import logging
+import sys
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 def calculate_dice(im1_path, im2_path, label1 =1, label2=1):
     im1 = sitk.ReadImage(im1_path)
@@ -20,7 +28,6 @@ def calculate_dice(im1_path, im2_path, label1 =1, label2=1):
     overlap_filter.Execute(im1_binary, im2_binary)
     dice_score = overlap_filter.GetDiceCoefficient()
     return dice_score
-
 
 def dice_rad(base_folder):
     folder1 = base_folder + 'rad1'
@@ -60,9 +67,8 @@ def dice_rad(base_folder):
     Q1_23 = np.percentile(dice_23, 25)
     Q3_23 = np.percentile(dice_23, 75)
 
-    print(np.mean(dice_12), Q3_12 - Q1_12,  np.mean(dice_23), Q3_23 - Q1_23,  np.mean(dice_13), Q3_13 - Q1_13)
-    print("Dice scores of radiologists:", np.mean(dice_scores), Q3 - Q1)
-
+    logger.info(f"{np.mean(dice_12)} {Q3_12 - Q1_12} {np.mean(dice_23)} {Q3_23 - Q1_23} {np.mean(dice_13)} {Q3_13 - Q1_13}")
+    logger.info(f"Dice scores of radiologists: {np.mean(dice_scores)} {Q3 - Q1}")
 
 def dice_ai(base_folder):
     folder1 = base_folder + 'ai_segmentations'
@@ -79,8 +85,7 @@ def dice_ai(base_folder):
     Q1 = np.percentile(dice_scores, 25)
     Q3 = np.percentile(dice_scores, 75)
 
-    print("Dice scores of AI:", np.mean(dice_scores), Q3 - Q1, len(dice_scores))
-
+    logger.info(f"Dice scores of AI: {np.mean(dice_scores)} {Q3 - Q1} {len(dice_scores)}")
 
 def dice_ai_NAT(base_folder):
     folder1 = base_folder + 'ai_segmentations'
@@ -94,20 +99,22 @@ def dice_ai_NAT(base_folder):
             full_path1 = os.path.join(folder1, filename1)
             full_path2 = os.path.join(folder2, filename1)
 
-            dice_scores_pre.append(calculate_dice(full_path1, full_path2, 13, 1)) if '_0' in filename1 else dice_scores_post.append(calculate_dice(full_path1, full_path2, 13, 1))
+            if '_0' in filename1:
+                dice_scores_pre.append(calculate_dice(full_path1, full_path2, 13, 1))
+            else:
+                dice_scores_post.append(calculate_dice(full_path1, full_path2, 13, 1))
 
     Q1 = np.percentile(dice_scores_pre, 25)
     Q3 = np.percentile(dice_scores_pre, 75)
 
-    print("Dice scores pre-NAT:", np.mean(dice_scores_pre), Q3 - Q1, len(dice_scores_pre))
+    logger.info(f"Dice scores pre-NAT: {np.mean(dice_scores_pre)} {Q3 - Q1} {len(dice_scores_pre)}")
 
     Q1 = np.percentile(dice_scores_post, 25)
     Q3 = np.percentile(dice_scores_post, 75)
 
-    print("Dice scores post-NAT:", np.mean(dice_scores_post), Q3 - Q1, len(dice_scores_post))
+    logger.info(f"Dice scores post-NAT: {np.mean(dice_scores_post)} {Q3 - Q1} {len(dice_scores_post)}")
 
     t_statistic, p_value = stats.ttest_ind(dice_scores_pre, dice_scores_post, equal_var=False)
-
 
 def icc(path, group='ai'):
     file_path = path
@@ -144,8 +151,7 @@ def icc(path, group='ai'):
 
     icc_df = pg.intraclass_corr(data=df_long, targets='Scan', raters='Rater', ratings='Volume')
     icc_value = icc_df.loc[icc_df['Type'] == 'ICC3', 'ICC'].values[0]
-    print(f'ICC of {group}  is {icc_value}.')
-
+    logger.info(f'ICC of {group}  is {icc_value}.')
 
 def extract_volume(scan_folder, segmentation_folder):
 
@@ -156,7 +162,7 @@ def extract_volume(scan_folder, segmentation_folder):
     segmentation_path = os.path.join(segmentation_folder, scan.split('_0000')[0] + '.nii.gz')
 
     if not os.path.exists(segmentation_path):
-        print(f"Segmentation for {segmentation_path} not found. Skipping...")
+        logger.warning(f"Segmentation for {segmentation_path} not found. Skipping...")
         return
 
     nifti_img = nib.load(scan_path)
@@ -164,7 +170,7 @@ def extract_volume(scan_folder, segmentation_folder):
     segmentation_data = nib.load(segmentation_path).get_fdata()
 
     if nifti_data.shape != segmentation_data.shape:
-        print(f"Dimensions of {scan} and its segmentation don't match. Skipping...")
+        logger.warning(f"Dimensions of {scan} and its segmentation don't match. Skipping...")
         return
 
     voxel_dims = np.abs(nifti_img.header.get_zooms())
@@ -199,7 +205,6 @@ def extract_volume(scan_folder, segmentation_folder):
         volumes_path = os.path.join(segmentation_folder, output_filename)
         with open(volumes_path, "w") as outfile:
             json.dump(data_dict, outfile)
-
 
 if __name__ == '__main__':
     dice_rad('your_folder')
