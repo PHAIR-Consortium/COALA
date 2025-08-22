@@ -1,5 +1,3 @@
-from typing import Union, Tuple
-
 import nnunetv2
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
@@ -7,7 +5,17 @@ from nnunetv2.preprocessing.cropping.cropping import crop_to_nonzero
 from nnunetv2.preprocessing.resampling.default_resampling import compute_new_shape
 from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
+import logging
+import sys
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
+from typing import Union, Tuple
 
 class DefaultPreprocessor(object):
     def __init__(self, verbose: bool = True):
@@ -15,7 +23,6 @@ class DefaultPreprocessor(object):
         """
         Everything we need is in the plans. Those are given when run() is called
         """
-
     def run_case_npy(self, data: np.ndarray, seg: Union[np.ndarray, None], properties: dict,
                      plans_manager: PlansManager, configuration_manager: ConfigurationManager,
                      dataset_json: Union[dict, str]):
@@ -31,20 +38,19 @@ class DefaultPreprocessor(object):
             seg = seg.transpose([0, *[i + 1 for i in plans_manager.transpose_forward]])
         original_spacing = [properties['spacing'][i] for i in plans_manager.transpose_forward]
 
-        # crop, remember to store size before cropping!
+       # crop, remember to store size before cropping!
         shape_before_cropping = data.shape[1:]
         properties['shape_before_cropping'] = shape_before_cropping
         # this command will generate a segmentation. This is important because of the nonzero mask which we may need
         data, seg, bbox = crop_to_nonzero(data, seg)
         properties['bbox_used_for_cropping'] = bbox
-        # print(data.shape, seg.shape)
         properties['shape_after_cropping_and_before_resampling'] = data.shape[1:]
 
         # resample
         target_spacing = configuration_manager.spacing  # this should already be transposed
 
         if len(target_spacing) < len(data.shape[1:]):
-            # target spacing for 2d has 2 entries but the data and original_spacing have three because everything is 3d
+             # target spacing for 2d has 2 entries but the data and original_spacing have three because everything is 3d
             # in 2d configuration we do not change the spacing between slices
             target_spacing = [original_spacing[0]] + target_spacing
         new_shape = compute_new_shape(data.shape[1:], original_spacing, target_spacing)
@@ -55,14 +61,12 @@ class DefaultPreprocessor(object):
         data = self._normalize(data, seg, configuration_manager,
                                plans_manager.foreground_intensity_properties_per_channel)
 
-        # print('current shape', data.shape[1:], 'current_spacing', original_spacing,
-        #       '\ntarget shape', new_shape, 'target_spacing', target_spacing)
         old_shape = data.shape[1:]
         data = configuration_manager.resampling_fn_data(data, new_shape, original_spacing, target_spacing)
         seg = configuration_manager.resampling_fn_seg(seg, new_shape, original_spacing, target_spacing)
         if self.verbose:
-            print(f'old shape: {old_shape}, new_shape: {new_shape}, old_spacing: {original_spacing}, '
-                  f'new_spacing: {target_spacing}, fn_data: {configuration_manager.resampling_fn_data}')
+            logger.info(f'old shape: {old_shape}, new_shape: {new_shape}, old_spacing: {original_spacing}, '
+                        f'new_spacing: {target_spacing}, fn_data: {configuration_manager.resampling_fn_data}')
 
         # if we have a segmentation, sample foreground locations for oversampling and add those to properties
         if has_seg:
@@ -89,7 +93,7 @@ class DefaultPreprocessor(object):
             seg = seg.astype(np.int8)
         return data, seg
 
-    def run_case(self, image_files: List[str], seg_file: Union[str, None], plans_manager: PlansManager,
+    def run_case(self, image_files: list, seg_file: Union[str, None], plans_manager: PlansManager,
                  configuration_manager: ConfigurationManager,
                  dataset_json: Union[dict, str]):
         """
@@ -117,11 +121,10 @@ class DefaultPreprocessor(object):
                                       dataset_json)
         return data, seg, data_properites
 
-    def run_case_save(self, output_filename_truncated: str, image_files: List[str], seg_file: str,
+    def run_case_save(self, output_filename_truncated: str, image_files: list, seg_file: str,
                       plans_manager: PlansManager, configuration_manager: ConfigurationManager,
                       dataset_json: Union[dict, str]):
         data, seg, properties = self.run_case(image_files, seg_file, plans_manager, configuration_manager, dataset_json)
-        # print('dtypes', data.dtype, seg.dtype)
         np.savez_compressed(output_filename_truncated + '.npz', data=data, seg=seg)
         write_pickle(properties, output_filename_truncated + '.pkl')
 
@@ -151,7 +154,7 @@ class DefaultPreprocessor(object):
             selected = all_locs[rndst.choice(len(all_locs), target_num_samples, replace=False)]
             class_locs[k] = selected
             if verbose:
-                print(c, target_num_samples)
+                logger.info(f"{c} {target_num_samples}")
         return class_locs
 
     def _normalize(self, data: np.ndarray, seg: np.ndarray, configuration_manager: ConfigurationManager,
@@ -168,11 +171,9 @@ class DefaultPreprocessor(object):
             data[c] = normalizer.run(data[c], seg[0])
         return data
 
-
     def modify_seg_fn(self, seg: np.ndarray, plans_manager: PlansManager, dataset_json: dict,
                       configuration_manager: ConfigurationManager) -> np.ndarray:
         # this function will be called at the end of self.run_case. Can be used to change the segmentation
         # after resampling. Useful for experimenting with sparse annotations: I can introduce sparsity after resampling
         # and don't have to create a new dataset each time I modify my experiments
         return seg
-
