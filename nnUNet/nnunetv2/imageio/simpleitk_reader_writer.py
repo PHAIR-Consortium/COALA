@@ -17,7 +17,15 @@ from typing import Tuple, Union, List
 import numpy as np
 from nnunetv2.imageio.base_reader_writer import BaseReaderWriter
 import SimpleITK as sitk
+import logging
+import sys
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 class SimpleITKIO(BaseReaderWriter):
     supported_file_endings = [
@@ -53,48 +61,36 @@ class SimpleITKIO(BaseReaderWriter):
                 spacings_for_nnunet.append(list(spacings[-1])[::-1][1:])
                 pass
             else:
+                logger.error(f"Unexpected number of dimensions: {len(npy_image.shape)} in file {f}")
                 raise RuntimeError("Unexpected number of dimensions: %d in file %s" % (len(npy_image.shape), f))
 
             images.append(npy_image)
             spacings_for_nnunet[-1] = list(np.abs(spacings_for_nnunet[-1]))
 
         if not self._check_all_same([i.shape for i in images]):
-            print('ERROR! Not all input images have the same shape!')
-            print('Shapes:')
-            print([i.shape for i in images])
-            print('Image files:')
-            print(image_fnames)
+            logger.error('ERROR! Not all input images have the same shape!')
+            logger.error(f'Shapes: {[i.shape for i in images]}')
+            logger.error(f'Image files: {image_fnames}')
             raise RuntimeError()
         if not self._check_all_same(spacings):
-            print('ERROR! Not all input images have the same spacing!')
-            print('Spacings:')
-            print(spacings)
-            print('Image files:')
-            print(image_fnames)
+            logger.error('ERROR! Not all input images have the same spacing!')
+            logger.error(f'Spacings: {spacings}')
+            logger.error(f'Image files: {image_fnames}')
             raise RuntimeError()
         if not self._check_all_same(origins):
-            print('WARNING! Not all input images have the same origin!')
-            print('Origins:')
-            print(origins)
-            print('Image files:')
-            print(image_fnames)
-            print('It is up to you to decide whether that\'s a problem. You should run nnUNet_plot_dataset_pngs to verify '
-                  'that segmentations and data overlap.')
+            logger.warning('WARNING! Not all input images have the same origin!')
+            logger.warning(f'Origins: {origins}')
+            logger.warning(f'Image files: {image_fnames}')
+            logger.warning('It is up to you om te beslissen of dat een probleem is. Je zou nnUNet_plot_dataset_pngs moeten draaien om te controleren of segmentaties en data overlappen.')
         if not self._check_all_same(directions):
-            print('WARNING! Not all input images have the same direction!')
-            print('Directions:')
-            print(directions)
-            print('Image files:')
-            print(image_fnames)
-            print('It is up to you to decide whether that\'s a problem. You should run nnUNet_plot_dataset_pngs to verify '
-                  'that segmentations and data overlap.')
+            logger.warning('WARNING! Not all input images have the same direction!')
+            logger.warning(f'Directions: {directions}')
+            logger.warning(f'Image files: {image_fnames}')
+            logger.warning('It is up to you om te beslissen of dat een probleem is. Je zou nnUNet_plot_dataset_pngs moeten draaien om te controleren of segmentaties en data overlappen.')
         if not self._check_all_same(spacings_for_nnunet):
-            print('ERROR! Not all input images have the same spacing_for_nnunet! (This should not happen and must be a '
-                  'bug. Please report!')
-            print('spacings_for_nnunet:')
-            print(spacings_for_nnunet)
-            print('Image files:')
-            print(image_fnames)
+            logger.error('ERROR! Not all input images have the same spacing_for_nnunet! (This should not happen and must be a bug. Please report!)')
+            logger.error(f'spacings_for_nnunet: {spacings_for_nnunet}')
+            logger.error(f'Image files: {image_fnames}')
             raise RuntimeError()
 
         stacked_images = np.vstack(images)
