@@ -8,13 +8,21 @@ from nnunetv2.imageio.simpleitk_reader_writer import SimpleITKIO
 from nnunetv2.imageio.nibabel_reader_writer import NibabelIO, NibabelIOWithReorient
 from nnunetv2.imageio.base_reader_writer import BaseReaderWriter
 from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 LIST_OF_IO_CLASSES = [
     SimpleITKIO,
     NibabelIO,
     NibabelIOWithReorient
 ]
-
 
 def determine_reader_writer_from_dataset_json(dataset_json_content: dict, example_file: str = None,
                                               allow_nonmatching_filename: bool = False, verbose: bool = True
@@ -25,14 +33,13 @@ def determine_reader_writer_from_dataset_json(dataset_json_content: dict, exampl
         # trying to find that class in the nnunetv2.imageio module
         try:
             ret = recursive_find_reader_writer_by_name(ioclass_name)
-            if verbose: print('Using %s reader/writer' % ret)
+            if verbose: logger.info('Using %s reader/writer' % ret)
             return ret
         except RuntimeError:
-            if verbose: print('Warning: Unable to find ioclass specified in dataset.json: %s' % ioclass_name)
-            if verbose: print('Trying to automatically determine desired class')
+            if verbose: logger.warning('Warning: Unable to find ioclass specified in dataset.json: %s' % ioclass_name)
+            if verbose: logger.info('Trying to automatically determine desired class')
     return determine_reader_writer_from_file_ending(dataset_json_content['file_ending'], example_file,
                                                     allow_nonmatching_filename, verbose)
-
 
 def determine_reader_writer_from_file_ending(file_ending: str, example_file: str = None, allow_nonmatching_filename: bool = False,
                                              verbose: bool = True):
@@ -43,28 +50,27 @@ def determine_reader_writer_from_file_ending(file_ending: str, example_file: str
                 try:
                     tmp = rw()
                     _ = tmp.read_images((example_file,))
-                    if verbose: print('Using %s as reader/writer' % rw)
+                    if verbose: logger.info('Using %s as reader/writer' % rw)
                     return rw
                 except:
-                    if verbose: print(f'Failed to open file {example_file} with reader {rw}:')
-                    traceback.print_exc()
+                    if verbose: logger.warning(f'Failed to open file {example_file} with reader {rw}:')
+                    if verbose: traceback.print_exc()
                     pass
             else:
-                if verbose: print('Using %s as reader/writer' % rw)
+                if verbose: logger.info('Using %s as reader/writer' % rw)
                 return rw
         else:
             if allow_nonmatching_filename and example_file is not None:
                 try:
                     tmp = rw()
                     _ = tmp.read_images((example_file,))
-                    if verbose: print('Using %s as reader/writer' % rw)
+                    if verbose: logger.info('Using %s as reader/writer' % rw)
                     return rw
                 except:
-                    if verbose: print(f'Failed to open file {example_file} with reader {rw}:')
+                    if verbose: logger.warning(f'Failed to open file {example_file} with reader {rw}:')
                     if verbose: traceback.print_exc()
                     pass
     raise RuntimeError("Unable to determine a reader for file ending %s and file %s (file None means no file provided)." % (file_ending, example_file))
-
 
 def recursive_find_reader_writer_by_name(rw_class_name: str) -> Type[BaseReaderWriter]:
     ret = recursive_find_python_class(join(nnunetv2.__path__[0], "imageio"), rw_class_name, 'nnunetv2.imageio')

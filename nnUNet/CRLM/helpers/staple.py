@@ -2,6 +2,15 @@ import os
 import SimpleITK as sitk
 import glob
 import numpy as np
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 root_dir = 'your_path_to_segmentations'
 output_dir = os.getcwd() + '\\output'
@@ -18,7 +27,7 @@ for project_folder in os.listdir('your_folder'):
         for radiologist_folder in ['your_folders']:
             image_path = os.path.join(root_dir, radiologist_folder, project_folder, str(label_value), '*.nii*')
             segmentations.extend(glob.glob(image_path))
-        print(segmentations)
+        logger.info(segmentations)
         if len(segmentations) > 0:
             segs = []
             for segmentation in segmentations:
@@ -42,8 +51,8 @@ for project_folder in os.listdir('your_folder'):
 
                 output_path = os.path.join(output_dir, project_folder + '_' + str(label_value) + '.nii.gz')
                 sitk.WriteImage(staple_segmentation, output_path)
-                print(f"STAPLE successfully ran for {project_folder}_{label_value}! Saved the final segmentation to the output folder")
-            except:
-                print(f"STAPLE could not run for {project_folder}_{label_value}!")
+                logger.info(f"STAPLE successfully ran for {project_folder}_{label_value}! Saved the final segmentation to the output folder")
+            except Exception as e:
+                logger.error(f"STAPLE could not run for {project_folder}_{label_value}! Exception: {e}")
 
-print("Done! all projects have been STAPLED!")
+logger.info("Done! all projects have been STAPLED!")

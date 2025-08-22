@@ -1,9 +1,20 @@
+
+
 from typing import Tuple, Union, List
 import numpy as np
 from nibabel import io_orientation
 from nnunetv2.imageio.base_reader_writer import BaseReaderWriter
 import nibabel
 
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 class NibabelIO(BaseReaderWriter):
     """
@@ -39,27 +50,19 @@ class NibabelIO(BaseReaderWriter):
             images.append(nib_image.get_fdata().transpose((2, 1, 0))[None])
 
         if not self._check_all_same([i.shape for i in images]):
-            print('ERROR! Not all input images have the same shape!')
-            print('Shapes:')
-            print([i.shape for i in images])
-            print('Image files:')
-            print(image_fnames)
+            logger.error('ERROR! Not all input images have the same shape!')
+            logger.error(f'Shapes: {[i.shape for i in images]}')
+            logger.error(f'Image files: {image_fnames}')
             raise RuntimeError()
         if not self._check_all_same_array(original_affines):
-            print('WARNING! Not all input images have the same original_affines!')
-            print('Affines:')
-            print(original_affines)
-            print('Image files:')
-            print(image_fnames)
-            print('It is up to you to decide whether that\'s a problem. You should run nnUNet_plot_dataset_pngs to verify '
-                  'that segmentations and data overlap.')
+            logger.warning('WARNING! Not all input images have the same original_affines!')
+            logger.warning(f'Affines: {original_affines}')
+            logger.warning(f'Image files: {image_fnames}')
+            logger.warning('It is up to you to decide whether that\'s a problem. Je zou nnUNet_plot_dataset_pngs moeten draaien om te controleren of segmentaties en data overlappen.')
         if not self._check_all_same(spacings_for_nnunet):
-            print('ERROR! Not all input images have the same spacing_for_nnunet! This might be caused by them not '
-                  'having the same affine')
-            print('spacings_for_nnunet:')
-            print(spacings_for_nnunet)
-            print('Image files:')
-            print(image_fnames)
+            logger.error('ERROR! Not all input images have the same spacing_for_nnunet! This might be caused by them not having the same affine')
+            logger.error(f'spacings_for_nnunet: {spacings_for_nnunet}')
+            logger.error(f'Image files: {image_fnames}')
             raise RuntimeError()
 
         stacked_images = np.vstack(images)
@@ -79,7 +82,6 @@ class NibabelIO(BaseReaderWriter):
         seg = seg.transpose((2, 1, 0)).astype(np.uint8)
         seg_nib = nibabel.Nifti1Image(seg, affine=properties['nibabel_stuff']['original_affine'])
         nibabel.save(seg_nib, output_fname)
-
 
 class NibabelIOWithReorient(BaseReaderWriter):
     """
@@ -121,27 +123,19 @@ class NibabelIOWithReorient(BaseReaderWriter):
             images.append(reoriented_image.get_fdata().transpose((2, 1, 0))[None])
 
         if not self._check_all_same([i.shape for i in images]):
-            print('ERROR! Not all input images have the same shape!')
-            print('Shapes:')
-            print([i.shape for i in images])
-            print('Image files:')
-            print(image_fnames)
+            logger.error('ERROR! Not all input images have the same shape!')
+            logger.error(f'Shapes: {[i.shape for i in images]}')
+            logger.error(f'Image files: {image_fnames}')
             raise RuntimeError()
         if not self._check_all_same_array(reoriented_affines):
-            print('WARNING! Not all input images have the same reoriented_affines!')
-            print('Affines:')
-            print(reoriented_affines)
-            print('Image files:')
-            print(image_fnames)
-            print('It is up to you to decide whether that\'s a problem. You should run nnUNet_plot_dataset_pngs to verify '
-                  'that segmentations and data overlap.')
+            logger.warning('WARNING! Not all input images have the same reoriented_affines!')
+            logger.warning(f'Affines: {reoriented_affines}')
+            logger.warning(f'Image files: {image_fnames}')
+            logger.warning('It is up to you to decide whether that\'s a problem. Je zou nnUNet_plot_dataset_pngs moeten draaien om te controleren of segmentaties en data overlappen.')
         if not self._check_all_same(spacings_for_nnunet):
-            print('ERROR! Not all input images have the same spacing_for_nnunet! This might be caused by them not '
-                  'having the same affine')
-            print('spacings_for_nnunet:')
-            print(spacings_for_nnunet)
-            print('Image files:')
-            print(image_fnames)
+            logger.error('ERROR! Not all input images have the same spacing_for_nnunet! This might be caused by them not having the same affine')
+            logger.error(f'spacings_for_nnunet: {spacings_for_nnunet}')
+            logger.error(f'Image files: {image_fnames}')
             raise RuntimeError()
 
         stacked_images = np.vstack(images)
@@ -160,7 +154,6 @@ class NibabelIOWithReorient(BaseReaderWriter):
     def write_seg(self, seg: np.ndarray, output_fname: str, properties: dict) -> None:
         # revert transpose
         seg = seg.transpose((2, 1, 0)).astype(np.uint8)
-
         seg_nib = nibabel.Nifti1Image(seg, affine=properties['nibabel_stuff']['reoriented_affine'])
         seg_nib_reoriented = seg_nib.as_reoriented(io_orientation(properties['nibabel_stuff']['original_affine']))
         assert np.allclose(properties['nibabel_stuff']['original_affine'], seg_nib_reoriented.affine), \
