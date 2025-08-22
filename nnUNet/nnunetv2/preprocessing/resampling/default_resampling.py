@@ -8,17 +8,24 @@ from batchgenerators.augmentations.utils import resize_segmentation
 from scipy.ndimage.interpolation import map_coordinates
 from skimage.transform import resize
 from nnunetv2.configuration import ANISO_THRESHOLD
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 
 def get_do_separate_z(spacing: Union[Tuple[float, ...], List[float], np.ndarray], anisotropy_threshold=ANISO_THRESHOLD):
     do_separate_z = (np.max(spacing) / np.min(spacing)) > anisotropy_threshold
     return do_separate_z
 
-
 def get_lowres_axis(new_spacing: Union[Tuple[float, ...], List[float], np.ndarray]):
-    axis = np.where(max(new_spacing) / np.array(new_spacing) == 1)[0]  # find which axis is anisotropic
+    axis = np.where(max(new_spacing) / np.array(new_spacing) == 1)[0]
     return axis
-
 
 def compute_new_shape(old_shape: Union[Tuple[int, ...], List[int], np.ndarray],
                       old_spacing: Union[Tuple[float, ...], List[float], np.ndarray],
@@ -27,7 +34,6 @@ def compute_new_shape(old_shape: Union[Tuple[int, ...], List[int], np.ndarray],
     assert len(old_shape) == len(new_spacing)
     new_shape = np.array([int(round(i / j * k)) for i, j, k in zip(old_spacing, new_spacing, old_shape)])
     return new_shape
-
 
 def resample_data_or_seg_to_shape(data: Union[torch.Tensor, np.ndarray],
                                   new_shape: Union[Tuple[int, ...], List[int], np.ndarray],
@@ -75,7 +81,6 @@ def resample_data_or_seg_to_shape(data: Union[torch.Tensor, np.ndarray],
 
     data_reshaped = resample_data_or_seg(data, new_shape, is_seg, axis, order, do_separate_z, order_z=order_z)
     return data_reshaped
-
 
 def resample_data_or_seg(data: np.ndarray, new_shape: Union[Tuple[float, ...], List[float], np.ndarray],
                          is_seg: bool = False, axis: Union[None, int] = None, order: int = 3,
@@ -167,5 +172,5 @@ def resample_data_or_seg(data: np.ndarray, new_shape: Union[Tuple[float, ...], L
             reshaped_final_data = np.vstack(reshaped)
         return reshaped_final_data.astype(dtype_data)
     else:
-        # print("no resampling necessary")
+        # logger.info("no resampling necessary")
         return data
