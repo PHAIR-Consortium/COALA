@@ -9,10 +9,19 @@ import nnunetv2
 from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 from nnunetv2.utilities.helpers import softmax_helper_dim0
 from typing import TYPE_CHECKING
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
 
 if TYPE_CHECKING:
     from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
-
 
 class LabelManager(object):
     def __init__(self, label_dict: dict, regions_class_order: Union[List[int], None], force_use_labels: bool = False,
@@ -54,7 +63,7 @@ class LabelManager(object):
         # not sure if we want to allow regions that contain background. I don't immediately see how this could cause
         # problems so we allow it for now. That doesn't mean that this is explicitly supported. It could be that this
         # just crashes.
-
+        
     def _get_all_labels(self) -> List[int]:
         all_labels = []
         for k, r in self.label_dict.items():
@@ -229,17 +238,15 @@ class LabelManager(object):
         else:
             return len(self.all_labels)
 
-
 def get_labelmanager_class_from_plans(plans: dict) -> Type[LabelManager]:
     if 'label_manager' not in plans.keys():
-        print('No label manager specified in plans. Using default: LabelManager')
+        logger.info('No label manager specified in plans. Using default: LabelManager')
         return LabelManager
     else:
         labelmanager_class = recursive_find_python_class(join(nnunetv2.__path__[0], "utilities", "label_handling"),
                                                          plans['label_manager'],
                                                          current_module="nnunetv2.utilities.label_handling")
         return labelmanager_class
-
 
 def convert_labelmap_to_one_hot(segmentation: Union[np.ndarray, torch.Tensor],
                                 all_labels: Union[List, torch.Tensor, np.ndarray, tuple],
@@ -268,16 +275,15 @@ def convert_labelmap_to_one_hot(segmentation: Union[np.ndarray, torch.Tensor],
     else:
         result = np.zeros((len(all_labels), *segmentation.shape),
                           dtype=output_dtype if output_dtype is not None else np.uint8)
-        # variant 1, fastest in my testing
+# variant 1, fastest in my testing
         for i, l in enumerate(all_labels):
             result[i] = segmentation == l
         # variant 2. Takes about twice as long so nah
         # result = np.eye(len(all_labels))[segmentation].transpose((3, 0, 1, 2))
     return result
 
-
-def determine_num_input_channels(plans_manager: PlansManager,
-                                 configuration_or_config_manager: Union[str, ConfigurationManager],
+def determine_num_input_channels(plans_manager: 'PlansManager',
+                                 configuration_or_config_manager: Union[str, 'ConfigurationManager'],
                                  dataset_json: dict) -> int:
     if isinstance(configuration_or_config_manager, str):
         config_manager = plans_manager.get_configuration(configuration_or_config_manager)
@@ -286,7 +292,7 @@ def determine_num_input_channels(plans_manager: PlansManager,
 
     label_manager = plans_manager.get_label_manager(dataset_json)
     num_modalities = len(dataset_json['modality']) if 'modality' in dataset_json.keys() else len(dataset_json['channel_names'])
-
+    
     # cascade has different number of input channels
     if config_manager.previous_stage_name is not None:
         num_label_inputs = len(label_manager.foreground_labels)
