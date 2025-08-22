@@ -5,6 +5,15 @@ import torch
 import numpy as np
 import SimpleITK as sitk
 import nibabel
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 
 def move(source, target):
@@ -16,14 +25,12 @@ def move(source, target):
         else:
             shutil.rmtree(os.path.join(source, file))
 
-
 def rename_files(input_dir):
     for filename in os.listdir(input_dir):
         if filename.endswith('.nii.gz'):
             base_filename = os.path.splitext(os.path.splitext(filename)[0])[0]
             new_filename = f"{base_filename}_0000.nii.gz"
             os.rename(os.path.join(input_dir, filename), os.path.join(input_dir, new_filename))
-
 
 def calculate_iou(im1_path, im2_path, label1, label2):
     im1 = sitk.ReadImage(im1_path)
@@ -47,19 +54,17 @@ def calculate_iou(im1_path, im2_path, label1, label2):
 
     return iou
 
-
 def iou(folder1, folder2, label1, label2):
     iou_scores = []
     for filename1 in os.listdir(folder1):
-        print(filename1)
+        logger.info(filename1)
         full_path1 = os.path.join(folder1, filename1)
         full_path2 = os.path.join(folder2, filename1)
 
         iou_scores.append(int(calculate_iou(full_path1, full_path2, label1, label2)))
 
-    print("IoU Scores:", iou_scores, np.mean(iou_scores))
+    logger.info(f"IoU Scores: {iou_scores}, {np.mean(iou_scores)}")
     return iou_scores
-
 
 def calculate_dice(im1_path, im2_path, label1, label2):
     im1 = sitk.ReadImage(im1_path)
@@ -79,20 +84,18 @@ def calculate_dice(im1_path, im2_path, label1, label2):
 
     return dice_score
 
-
 def dice(folder1, folder2, label1, label2):
     dice_scores = []
     for filename1 in os.listdir(folder1):
         if '.nii.gz' in filename1:
             full_path1 = os.path.join(folder1, filename1)
             full_path2 = os.path.join(folder2, filename1.split('.nii.gz')[0] + '_0000.nii.gz')
-            print(full_path2)
+            logger.info(full_path2)
 
             dice_scores.append(int(calculate_dice(full_path1, full_path2, label1, label2)*100))
 
-    print("Dice Scores:", dice_scores, np.mean(dice_scores))
+    logger.info(f"Dice Scores: {dice_scores}, {np.mean(dice_scores)}")
     return dice_scores
-
 
 def calculate_metrics(im1_path, im2_path, label1, label2):
     im1 = sitk.ReadImage(im1_path)
@@ -113,7 +116,6 @@ def calculate_metrics(im1_path, im2_path, label1, label2):
     tn = np.sum(((~mask_ref) & (~mask_pred)))
     return [tp, fp, fn, tn]
 
-
 def metrics(folder1, folder2, label1, label2):
     scores = []
 
@@ -124,9 +126,8 @@ def metrics(folder1, folder2, label1, label2):
 
             scores.append(calculate_metrics(full_path1, full_path2, label1, label2))
 
-    print("Metrics :", scores)
+    logger.info(f"Metrics : {scores}")
     return scores
-
 
 def run_inference(nnunet_dir, input_dir, output_dir, task_id, model):
     model_dir = os.path.join(nnunet_dir, 'nnunetv2', 'nnUNet_results',
